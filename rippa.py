@@ -16,7 +16,7 @@ from makemkvkey import updateMakeMkvKey
 
 def log_subprocess_output(pipe):
     for line in iter(pipe.readline, b''): # b'\n'-separated lines
-        logging.info('SUBPROCESS: %r', line.decode("utf-8"))
+        logging.debug('SUBPROCESS: %r', line.decode("utf-8"))
 
 # Timeout is in seconds
 def execute(cmd, capture=True, cwd=None) -> Optional[str]:
@@ -140,15 +140,13 @@ class TranscodeThread(LoopThread):
         
         # Skip if less than 1MB
         if size1 < 1024 * 1024:
-            logging.debug(f"File {file_path} is less than 1MB")
-            return
+            raise Exception(f"File {file_path} is less than 1MB")
         
-        time.sleep(30)
+        time.sleep(30) # Wait to see if the file size changes
         size2 = os.path.getsize(file_path)
         logging.debug(f"size2: {size2}")
         if size1 != size2:
-            logging.debug(f"File {file_path} is not done being written (file size changed)")
-            return       
+            raise Exception("File {file_path} is not done being written (file size changed)")
         
         os.makedirs(out_path, exist_ok=True)
         
@@ -170,17 +168,23 @@ class TranscodeThread(LoopThread):
 
     def transcode_disc(self, disc_name: str):
         wip_dvd_root = f"{self.wip_root}/dvd"
+        wip_transcode_dvd_root = f"{self.wip_root}/dvd_transcode"
+        out_dvd_root = f"{self.out_root}/dvd"
         
         wip_path = f"{wip_dvd_root}/{disc_name}"
-        out_path = f"{self.out_root}/{disc_name}"
+        wip_transcode_path = f"{wip_transcode_dvd_root}/{disc_name}"
+        out_path = f"{out_dvd_root}/{disc_name}"
         
         files = os.listdir(wip_path)
         logging.debug(f"Files: {files}")
 
         for file in files:
-            file_path = f"{wip_path}/{file}"
+            raw_file_path = f"{wip_path}/{file}"
+            transcode_file_path = f"{wip_transcode_path}/{file}"
             try:
-                self.transcode_file(file_path, out_path)
+                self.transcode_file(raw_file_path, wip_transcode_path)
+                shutil.move(transcode_file_path, out_path)
+                logging.info(f"Finished transcoding file: {file}")
             except Exception as e:
                 logging.debug(f"transcode_file error: {e}")
                 logging.debug(f"Maybe MakeMKV is still ripping the disc?")
@@ -196,22 +200,16 @@ class TranscodeThread(LoopThread):
 class RipThread(StoppableThread):
     def __init__(self,
         drive: str,
-        wip_path: str,
-        dvd_path: str,
-        redbook_path: str,
-        iso_path: str,
-        bluray_path: str,
+        wip_root: str,
+        out_root: str,
         skip_eject: bool,
         makemkv_update_key: bool,
         makemkv_settings_path: Optional[str] = None
     ):
         super().__init__()
         self.drive = drive
-        self.wip_path = wip_path
-        self.dvd_path = dvd_path
-        self.redbook_path = redbook_path
-        self.iso_path = iso_path
-        self.bluray_path = bluray_path
+        self.wip_root = wip_root
+        self.out_root = out_root
         self.skip_eject = skip_eject
         self.makemkv_update_key = makemkv_update_key
         self.makemkv_settings_path = makemkv_settings_path
@@ -219,7 +217,7 @@ class RipThread(StoppableThread):
     def rip_dvd(self, blkid_params: dict):
         disc_name = f"{blkid_params['LABEL']}-{blkid_params['UUID']}"
         wip_path = f"{self.wip_root}/dvd/{disc_name}"
-        out_path = f"{self.out_root}/{disc_name}"
+        out_path = f"{self.out_root}/dvd/{disc_name}"
         
         # Check if output path exists
         if pathlib.Path(out_path).exists():
@@ -248,13 +246,15 @@ class RipThread(StoppableThread):
         execute(cmd, capture=False)
         
         # Transcoding is handled in its own thread, so we're done here!
+        
+        logging.info(f"Finished ripping DVD, wait for transcode: {disc_name}")
     
     def rip_redbook(self, cdp_str: str):
         cdp_hash = cdparanoia_hash(cdp_str)
         cdp_hash = str(hex(abs(cdp_hash)))[2:]
         
         # Check if any folders in out begin with the hash
-        out_dir_path = self.out_root
+        out_dir_path = f"{self.out_root}/redbook"
         os.makedirs(out_dir_path, exist_ok=True)
         for folder in os.listdir(out_dir_path):
             if folder.endswith(cdp_hash):
@@ -286,7 +286,7 @@ class RipThread(StoppableThread):
     def rip_data_disc(self, blkid_params: dict):
         file_name = f"{blkid_params['LABEL']}-{blkid_params['UUID']}.iso"
         wip_dir_path = f"{self.wip_root}/iso"
-        out_dir_path = self.out_root
+        out_dir_path = f"{self.out_root}/iso"
         wip_path = f"{wip_dir_path}/{file_name}"
         out_path = f"{out_dir_path}/{file_name}"
         
@@ -313,7 +313,7 @@ class RipThread(StoppableThread):
         shutil.move(wip_path, out_path)
 
     def rip_bluray(blkid_params: dict):
-        pass
+        raise NotImplementedError("Blu-ray ripping is not yet implemented")
     
     def loop_step(self):
         blkid_str = None
@@ -364,11 +364,8 @@ if __name__ == "__main__":
     parser.add_argument("--config", default="config.json", help="Path to the config file (see config.example.json)")
     parser.add_argument("--drive", default="/dev/sr0", help="Path to the optical drive")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("--wip-path", default="./wip", help="Path to store work-in-progress files")
-    parser.add_argument("--dvd-path", default="./dvd", help="Path to rip dvd discs to")
-    parser.add_argument("--redbook-path", default="./redbook", help="Path to rip redbook audio discs to")
-    parser.add_argument("--iso-path", default="./iso", help="Path to rip data discs to")
-    parser.add_argument("--bluray-path", default="./bluray", help="Path to rip bluray discs to")
+    parser.add_argument("--wip-root", default="./wip", help="Path to store work-in-progress files")
+    parser.add_argument("--out-root", default="./out", help="Path to store finished files")
     parser.add_argument("--skip-eject", action="store_true", help="Don't eject the disc after ripping")
     parser.add_argument("--makemkv-update-key", action="store_true", help="Automatically update free MakeMKV key")
     parser.add_argument(
@@ -391,17 +388,14 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
     
     transcode_thread = TranscodeThread(
-        args.wip_path,
-        args.dvd_path,
+        args.wip_root,
+        args.out_root,
         args.ffmpeg_args
     )
     rip_thread = RipThread(
         args.drive,
-        args.wip_path,
-        args.dvd_path,
-        args.redbook_path,
-        args.iso_path,
-        args.bluray_path,
+        args.wip_root,
+        args.out_root,
         args.skip_eject,
         args.makemkv_update_key,
         args.makemkv_settings_path

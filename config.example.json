@@ -1,11 +1,8 @@
 {
     "drive": "/dev/sr0",
     "debug": false,
-    "wip-path": "./wip",
-    "dvd-path": "./dvd",
-    "redbook-path": "./redbook",
-    "iso-path": "./iso",
-    "bluray-path": "./bluray",
+    "wip-root": "./wip",
+    "out-root": "./out",
     "skip-eject": false,
     "makemkv-update-key": false,
     "makemkv-settings-path": "~/.MakeMKV/settings.conf",
