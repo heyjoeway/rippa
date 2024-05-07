@@ -1,0 +1,19 @@
+{
+    "drive": "/dev/sr0",
+    "debug": false,
+    "wip-path": "./wip",
+    "dvd-path": "./dvd",
+    "redbook-path": "./redbook",
+    "iso-path": "./iso",
+    "bluray-path": "./bluray",
+    "skip-eject": false,
+    "makemkv-update-key": false,
+    "makemkv-settings-path": "~/.MakeMKV/settings.conf",
+    "ffmpeg-args": [
+        "-c:v", "libx264",
+        "-crf", "18",
+        "-map", "0",
+        "-c:a", "copy",
+        "-c:s", "copy"
+    ]
+}
