@@ -1,5 +1,5 @@
 # Rippa
-Automatically rip discs (Data, Redbook, DVD, Blu-Ray) when inserted.
+Automatically rip discs (Data, Redbook, DVD, Blu-Ray) when inserted. When ripping DVDs, each title is automatically transcoded in parallel.
 
 # Security Notice
 
@@ -48,5 +48,3 @@ options:
   --makemkv-settings-path MAKEMKV_SETTINGS_PATH
                         Path to the MakeMKV settings file (default: ~/.MakeMKV/settings.conf)
 ```
-
-###### #FREETHERIPPA

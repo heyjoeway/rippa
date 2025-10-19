@@ -297,10 +297,14 @@ class RipThread(LoopThread):
         execute(cmd, capture=False)
         
         os.makedirs(wip_path, exist_ok=True)
-        # Move all files from the rip folder to the final wip folder, then remove the rip folder
+        # Move all files from the rip folder to the final wip folder,
+        # then remove the rip folder
         for entry in os.listdir(wip_rip_path):
             src = os.path.join(wip_rip_path, entry)
-            logging.debug(f"Moving from rip path to wip path: {src} -> {wip_path}")
+            logging.debug(
+                "Moving from rip path to wip path: "
+                f"{src} -> {wip_path}"
+            )
             shutil.move(src, wip_path)
 
         os.rmdir(wip_rip_path)
