@@ -79,8 +79,18 @@ def cdparanoia_hash(cdp_str: str) -> int:
     return hash(tuple(lengths))
 
 
+def trysudo(cmd: list[str]):
+    try:
+        execute(cmd, capture=False)
+    except Exception as e:
+        logging.debug("trysudo error: %s", e)
+        logging.info("Retrying with sudo...")
+        cmd = ["sudo"] + cmd
+        execute(cmd, capture=False)
+
+
 def eject(drive: str):
-    execute(["sudo", "eject", "-F", drive])
+    trysudo(["eject", "-F", drive])
 
 
 _mounts = []
@@ -88,12 +98,12 @@ _mounts = []
 
 def mount(drive: str, mnt_path: str):
     os.makedirs(mnt_path, exist_ok=True)
-    execute(["sudo", "mount", drive, mnt_path])
+    trysudo(["mount", drive, mnt_path])
     _mounts.append(mnt_path)
 
 
 def unmount(mnt_path: str):
-    execute(["sudo", "umount", mnt_path])
+    trysudo(["umount", mnt_path])
 
 
 @atexit.register
@@ -221,6 +231,8 @@ class TranscodeThread(LoopThread):
         wip_transcode_files = os.listdir(wip_transcode_path)
         logging.debug(f"wip_transcode_files: {wip_transcode_files}")
 
+        os.makedirs(out_path, exist_ok=True)
+
         for file in wip_transcode_files:
             transcode_file_path = f"{wip_transcode_path}/{file}"
             self._wait_for_file_stable(transcode_file_path)
@@ -262,15 +274,18 @@ class RipThread(LoopThread):
         self.makemkv_settings_path = makemkv_settings_path
         logging.debug("RipThread initialized")
 
-    def rip_dvd(self, blkid_params: dict):
+    def rip_dvd(self, blkid_params: dict, drive: str):
         disc_name = f"{blkid_params['LABEL']}-{blkid_params['UUID']}"
         wip_rip_path = f"{self.wip_root}/dvd_rip/{disc_name}"
         wip_path = f"{self.wip_root}/dvd/{disc_name}"
         out_path = f"{self.out_root}/dvd/{disc_name}"
 
-        # Check if output path exists
         if pathlib.Path(out_path).exists():
             logging.info(f"Output path exists: {out_path}")
+            return
+
+        if pathlib.Path(wip_path).exists():
+            logging.info(f"WIP path exists: {wip_path}")
             return
 
         if self.makemkv_update_key:
@@ -280,7 +295,6 @@ class RipThread(LoopThread):
 
         shutil.rmtree(wip_rip_path, ignore_errors=True)
         os.makedirs(wip_rip_path, exist_ok=True)
-        os.makedirs(out_path, exist_ok=True)
 
         # Get number of the drive (eg. 0 for /dev/sr0, 1 for /dev/sr1, etc.)
         drive_id = int(re.search(r"\d+", self.drive).group(0))
@@ -295,7 +309,7 @@ class RipThread(LoopThread):
         ]
         logging.debug(f"Executing: {' '.join(cmd)}")
         execute(cmd, capture=False)
-        
+
         os.makedirs(wip_path, exist_ok=True)
         # Move all files from the rip folder to the final wip folder,
         # then remove the rip folder
@@ -341,6 +355,8 @@ class RipThread(LoopThread):
         out_path = f"{out_dir_path}/{album_name}-{cdp_hash}"
         shutil.move(f"{wip_dir_path}/{album_name}", out_path)
 
+        logging.info(f"Finished ripping redbook: {cdp_hash}")
+
     def rip_data_disc(self, blkid_params: dict):
         file_name = f"{blkid_params['LABEL']}-{blkid_params['UUID']}.iso"
         wip_dir_path = f"{self.wip_root}/iso"
@@ -348,7 +364,6 @@ class RipThread(LoopThread):
         wip_path = f"{wip_dir_path}/{file_name}"
         out_path = f"{out_dir_path}/{file_name}"
 
-        # Check if output path exists
         if pathlib.Path(out_path).exists():
             logging.info(f"Output path exists: {out_path}")
             return
@@ -358,12 +373,14 @@ class RipThread(LoopThread):
         os.makedirs(wip_dir_path, exist_ok=True)
         os.makedirs(out_dir_path, exist_ok=True)
 
-        cmd = ["dd", f"if={self.drive}", f"of={out_path}", "status=progress"]
+        cmd = ["dd", f"if={self.drive}", f"of={wip_path}", "status=progress"]
         logging.debug(f"Executing: {' '.join(cmd)}")
         execute(cmd, capture=False, cwd=os.getcwd())
 
         # Move the file to the out folder
         shutil.move(wip_path, out_path)
+
+        logging.info(f"Finished ripping data disc: {file_name}")
 
     def rip_bluray(blkid_params: dict):
         raise NotImplementedError("Blu-ray ripping is not yet implemented")
@@ -407,10 +424,10 @@ class RipThread(LoopThread):
         video_ts_exists = pathlib.Path(video_ts_path).exists()
         logging.debug(f"video_ts_exists: {video_ts_exists}")
         if video_ts_exists:
-            logging.debug("Ripping as DVD")
+            logging.info("DVD detected")
             self.rip_dvd(blkid_params)
         else:
-            logging.debug("Ripping as data disc")
+            logging.info("Data disc detected")
             self.rip_data_disc(blkid_params)
 
         if not self.skip_eject:
@@ -460,8 +477,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.config:
-        with open(args.config, "r") as f:
-            config = json.load(f)
+        try:
+            with open(args.config, "r") as f:
+                config = json.load(f)
+        except Exception as e:
+            logging.warning(f"Error loading config file: {e}")
+            config = {}
         parser.set_defaults(**config)
         args = parser.parse_args()
         # Add any data from the config file that wasn't in the command line

@@ -18,6 +18,12 @@ def updateMakeMkvKey(settingsPath: str):
 
     settingsPath = os.path.expanduser(settingsPath)
 
+    # Ensure settingsPath exists
+    os.makedirs(os.path.dirname(settingsPath), exist_ok=True)
+    if not os.path.exists(settingsPath):
+        # create an empty file (touch)
+        open(settingsPath, "a").close()
+
     with open(settingsPath, "r") as settingsFile:
         settings = settingsFile.read()
 
