@@ -17,7 +17,7 @@ from makemkvkey import updateMakeMkvKey
 
 def log_subprocess_output(pipe):
     for line in iter(pipe.readline, b""):  # b'\n'-separated lines
-        logging.debug("SUBPROCESS: %r", line.decode("utf-8"))
+        logging.info("SUBPROCESS: %r", line.decode("utf-8"))
 
 
 # Timeout is in seconds
