@@ -1,0 +1,16 @@
+{
+    "drive": "/dev/sr0",
+    "debug": false,
+    "wip-root": "./wip",
+    "out-root": "./out",
+    "skip-eject": false,
+    "makemkv-update-key": false,
+    "makemkv-settings-path": "~/.MakeMKV/settings.conf",
+    "ffmpeg-args": [
+        "-c:v", "libx264",
+        "-crf", "18",
+        "-map", "0",
+        "-c:a", "copy",
+        "-c:s", "copy"
+    ]
+}
