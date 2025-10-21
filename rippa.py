@@ -250,9 +250,12 @@ class TranscodeThread(LoopThread):
 
     def loop_step(self):
         logging.debug("Transcode loop step")
-        for disc_name in os.listdir(self.wip_dvd_root):
-            logging.debug(f"Transcoding disc: {disc_name}")
-            self.transcode_disc(disc_name)
+        try:
+            for disc_name in os.listdir(self.wip_dvd_root):
+                logging.debug(f"Transcoding disc: {disc_name}")
+                self.transcode_disc(disc_name)
+        except Exception as e:
+            logging.warn(f"TranscodeThread loop_step: {e}")
 
 
 class RipThread(LoopThread):
