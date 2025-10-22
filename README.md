@@ -1,14 +1,45 @@
 # Rippa
 
-> Step 1: Insert disc
+> **Step 1:** Insert disc
 >
-> Step 2: Wait
+> **Step 2:** Wait
 >
-> Step 3: ?????
+> **Step 3:** ?????
 >
-> Step 4: Profit
+> **Step 4:** Profit
 
-Automatically rip discs (Data, Audio, DVD) when inserted. Data discs get ripped to ISO. Audio CDs get transcoded to FLAC. DVDs are transcoded in parallel. Blu-ray is not yet supported because I don't have a drive to develop with.
+Automatically rip discs (Data, Audio, DVD) when inserted. Data discs get ripped to ISO. Audio CDs get transcoded to FLAC. DVDs are ripped by MakeMKV, then transcoded to H264 MP4s in parallel. Blu-ray is not yet supported because I don't have a drive to develop with.
+
+# TrueNAS Scale App (Recommended)
+
+Create a new custom TrueNAS Scale App (Apps > Discover Apps > Custom App) with the following settings:
+
+- **Application Name:** `Rippa`
+- **Image Configuration**
+  - Repository: `heyjoeway/rippa`
+- **Container Configuration**
+  - Hostname: `rippa`
+  - Restart Policy: `Unless Stopped`
+- **Devices**
+  -	Add:
+    -	Host Device: `/dev/sr0`
+    -	Container Device: `/dev/sr0`
+- **Security Context Configuration**
+  -	Privileged: Yes
+- **Storage Configuration**
+  -	Entry 1:
+    -	Type: `Host Path`
+    -	Mount Path: `/app/out/iso`
+    -	Host Path: `[Path to output ISO files on TrueNAS]`
+  -	Entry 2:
+    -	Type: `Host Path`
+    -	Mount Path: `/app/out/redbook`
+    -	Host Path: `[Path to output audio rips on TrueNAS]`
+  -	Entry 3:
+    -	Type: `Host Path`
+    -	Mount Path: `/app/out/dvd`
+    -	Host Path: `[Path to output DVD rips on TrueNAS]`
+
 
 # Docker Quick Start (Recommended)
 
@@ -16,7 +47,7 @@ Automatically rip discs (Data, Audio, DVD) when inserted. Data discs get ripped 
 
 ## Security Notice
 
-To access the optical drive device and mount filesystems, the Docker container requires privileged access. [Official documentation on the risks can be read at this link.](https://docs.docker.com/engine/containers/run/#runtime-privilege-and-linux-capabilities) As a mitigaton, you can add `--network none` to any of the `docker run` commands to block all network access, but doing so will prevent CD rips from being automatically tagged. Any pull requests to handle this more securely are welcome.
+To access the optical drive device and mount filesystems, the Docker container requires privileged access. [Official documentation on the risks can be read at this link.](https://docs.docker.com/engine/containers/run/#runtime-privilege-and-linux-capabilities) As a mitigaton, you can add `--network none` to any of the `docker run` commands to block all network access, but doing so will prevent audio CD rips from being automatically tagged. Any pull requests to handle this more securely are welcome.
 
 ## Starting the Container
 
@@ -37,10 +68,12 @@ docker run \
   --restart unless-stopped \
   --detach \
   --privileged \
-  [TODO: DockerHub image name]:latest
+  heyjoeway/rippa:latest
 ```
 
 # Docker Development
+
+**This is for doing development in Docker only. Please see the previous section if you just want to run Rippa.**
 
 In the directory containing the `Dockerfile`, run the following commands:
 
