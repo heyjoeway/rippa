@@ -32,5 +32,5 @@ jobs:
           context: .
           push: true
           tags: ${{ vars.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest
-            cache-from: type=gha
+          cache-from: type=gha
           cache-to: type=gha,mode=max

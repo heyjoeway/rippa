@@ -12,6 +12,12 @@ Automatically rip discs (Data, Audio, DVD) when inserted. Data discs get ripped 
 
 # TrueNAS Scale App (Recommended)
 
+## Security Notice
+
+To access the optical drive device and mount filesystems, the TrueNAS Scale app requires privileged access. [Official documentation on the risks can be read at this link.](https://docs.docker.com/engine/containers/run/#runtime-privilege-and-linux-capabilities) Any pull requests to handle this more securely are welcome.
+
+## Creating the App
+
 Create a new custom TrueNAS Scale App (Apps > Discover Apps > Custom App) with the following settings:
 
 - **Application Name:** `Rippa`
