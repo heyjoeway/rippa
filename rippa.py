@@ -277,7 +277,7 @@ class RipThread(LoopThread):
         self.makemkv_settings_path = makemkv_settings_path
         logging.debug("RipThread initialized")
 
-    def rip_dvd(self, blkid_params: dict, drive: str):
+    def rip_dvd(self, blkid_params: dict):
         disc_name = f"{blkid_params['LABEL']}-{blkid_params['UUID']}"
         wip_rip_path = f"{self.wip_root}/dvd_rip/{disc_name}"
         wip_path = f"{self.wip_root}/dvd/{disc_name}"
